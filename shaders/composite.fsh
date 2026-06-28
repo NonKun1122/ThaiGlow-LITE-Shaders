@@ -1,12 +1,16 @@
 #version 120
 
-// FIX: Remove "const int ENABLE_FOG = 1;" — it blocks Iris from injecting #define.
-
 #ifndef ENABLE_FOG
 #define ENABLE_FOG 1
 #endif
 #ifndef FOG_DENSITY
 #define FOG_DENSITY 0.5
+#endif
+#ifndef NIGHT_BRIGHTNESS
+#define NIGHT_BRIGHTNESS 0.3
+#endif
+#ifndef DAY_BRIGHTNESS
+#define DAY_BRIGHTNESS 1.0
 #endif
 
 uniform sampler2D gcolor;
@@ -39,22 +43,25 @@ void main() {
 
     float rainDark = rainStrength * 0.4 + wetness * 0.2;
 
-    vec3 fogDayEarly = vec3(0.60, 1.00, 1.00) * (1.0 - rainDark);
-    vec3 fogDayLate  = vec3(0.20, 0.40, 1.00) * (1.0 - rainDark);
-    vec3 fogNight    = vec3(0.00, 0.00, 0.25) * (1.0 - rainDark);
+    // Apply brightness settings with proper night fog
+    vec3 fogDayEarly = vec3(0.60, 1.00, 1.00) * DAY_BRIGHTNESS * (1.0 - rainDark);
+    vec3 fogDayLate  = vec3(0.20, 0.40, 1.00) * DAY_BRIGHTNESS * (1.0 - rainDark);
+    vec3 fogNight    = vec3(0.05, 0.05, 0.12) * NIGHT_BRIGHTNESS * (1.0 - rainDark);
 
     vec3 fogCol;
     if (tod < 0.25) {
         float t = smoothstep(0.0, 0.25, tod);
-        fogCol = mix(vec3(1.00, 0.60, 0.20), fogDayEarly, t);
+        fogCol = mix(vec3(0.40, 0.20, 0.08) * DAY_BRIGHTNESS, fogDayEarly, t);
     } else if (tod < 0.45) {
         fogCol = fogDayEarly;
     } else if (tod < 0.55) {
         float t = smoothstep(0.45, 0.55, tod);
-        fogCol = mix(fogDayEarly, vec3(1.00, 0.50, 0.15), t);
+        // ลดการผสมสีส้ม ค่อย ๆ เข้มไป
+        vec3 sunsetCol = vec3(0.50, 0.25, 0.10) * (1.0 - t);
+        fogCol = mix(fogDayEarly, fogNight, t) + sunsetCol;
     } else if (tod < 0.75) {
         float t = smoothstep(0.55, 0.75, tod);
-        fogCol = mix(vec3(1.00, 0.50, 0.15), fogNight, t);
+        fogCol = mix(vec3(0.15, 0.10, 0.15), fogNight, t);
     } else {
         fogCol = fogNight;
     }
