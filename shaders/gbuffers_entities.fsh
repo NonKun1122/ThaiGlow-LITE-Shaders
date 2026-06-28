@@ -1,13 +1,10 @@
 #version 120
 
-// FIX: Removed "const int ENABLE_DIRLIGHT" and "const float SHADOW_STRENGTH"
-// These const declarations prevented Iris from injecting user-configured values.
-
 #ifndef ENABLE_DIRLIGHT
 #define ENABLE_DIRLIGHT 1
 #endif
 #ifndef DAY_BRIGHTNESS
-#define DAY_BRIGHTNESS 0.85
+#define DAY_BRIGHTNESS 1.0
 #endif
 #ifndef NIGHT_BRIGHTNESS
 #define NIGHT_BRIGHTNESS 0.3
@@ -54,48 +51,38 @@ void main() {
     float sl2 = sl * sl;
     float bl2 = bl * bl;
 
-    // Use NIGHT_BRIGHTNESS setting
-    vec3 skyAmbDay   = vec3(0.60, 0.85, 1.00) * sl2 * 0.65 * DAY_BRIGHTNESS;
-    vec3 skyAmbNight = vec3(0.06, 0.06, 0.15) * sl2 * 0.30 * NIGHT_BRIGHTNESS;
+    vec3 skyAmbDay   = vec3(0.65, 0.85, 1.00) * sl2 * 0.55 * DAY_BRIGHTNESS;
+    vec3 skyAmbNight = vec3(0.02, 0.02, 0.08) * sl2 * 0.12 * NIGHT_BRIGHTNESS;
     vec3 skyAmb = mix(skyAmbDay, skyAmbNight, nightFactor);
 
     vec3 torchColor = vec3(TORCH_COLOR_R, TORCH_COLOR_G, TORCH_COLOR_B);
-    float torchMul = mix(0.80, TORCH_STRENGTH * 0.6, nightFactor);
+    float torchMul = mix(0.6, TORCH_STRENGTH * 0.5, nightFactor);
     vec3 torchC = torchColor * (bl2 * torchMul);
 
-    // Night floor darker with NIGHT_BRIGHTNESS
-    vec3 nightFloor = vec3(0.08, 0.08, 0.15) * nightFactor * NIGHT_BRIGHTNESS * 0.5;
-    vec3 ambient = albedo.rgb * (skyAmb + torchC + vec3(0.04)) + albedo.rgb * nightFloor;
+    vec3 ambient = albedo.rgb * (skyAmb + torchC + vec3(0.02));
 
     vec3 sunCol;
-    if (tod < 0.10) {
-        sunCol = mix(vec3(0.60, 0.30, 0.10), vec3(1.00, 0.90, 0.60), tod / 0.10);
-    } else if (tod < 0.25) {
-        sunCol = mix(vec3(1.00, 0.90, 0.60), vec3(1.00, 0.98, 0.95), (tod - 0.10) / 0.15);
-    } else if (tod < 0.45) {
-        sunCol = vec3(1.00, 0.98, 0.95);
-    } else if (tod < 0.55) {
-        sunCol = mix(vec3(1.00, 0.98, 0.95), vec3(0.40, 0.30, 0.20), (tod - 0.45) / 0.10);
-    } else if (tod < 0.75) {
-        sunCol = mix(vec3(0.40, 0.30, 0.20), vec3(0.08, 0.08, 0.18), (tod - 0.55) / 0.20);
-    } else {
-        sunCol = vec3(0.08, 0.08, 0.18);
-    }
+    if (tod < 0.1)       sunCol = mix(vec3(0.3, 0.15, 0.08), vec3(1.0, 0.9, 0.75), tod / 0.1);
+    else if (tod < 0.25) sunCol = mix(vec3(1.0, 0.9, 0.75), vec3(1.0, 0.98, 0.95), (tod - 0.1) / 0.15);
+    else if (tod < 0.45) sunCol = vec3(1.0, 0.98, 0.95);
+    else if (tod < 0.55) sunCol = mix(vec3(1.0, 0.98, 0.95), vec3(0.05, 0.05, 0.15), (tod - 0.45) / 0.1);
+    else if (tod < 0.75) sunCol = mix(vec3(0.05, 0.05, 0.15), vec3(0.01, 0.01, 0.05), (tod - 0.55) / 0.2);
+    else                 sunCol = vec3(0.01, 0.01, 0.05);
 
 #if ENABLE_DIRLIGHT == 1
     float dirLight = max(dot(norm, normalize(vec3(0.55, 1.0, 0.4))), 0.0);
-    dirLight = dirLight * 0.5 + 0.5;
-    float shadowAmt = mix(0.85, 0.15, nightFactor) * SHADOW_STRENGTH;
-    vec3 diffuse = albedo.rgb * sunCol * dirLight * shadowAmt;
+    dirLight = dirLight * 0.6 + 0.4;
+    float shadowAmt = mix(0.8, 0.3, nightFactor) * SHADOW_STRENGTH;
+    vec3 diffuse = albedo.rgb * sunCol * dirLight * shadowAmt * 1.1;
 #else
-    vec3 diffuse = albedo.rgb * sunCol * mix(0.70, 0.15, nightFactor);
+    vec3 diffuse = albedo.rgb * sunCol * mix(0.7, 0.2, nightFactor);
 #endif
 
     vec3 color = ambient + diffuse;
 
     if (rainStrength > 0.01) {
         float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-        color = mix(color, vec3(luma * 0.80), rainStrength * 0.30);
+        color = mix(color, vec3(luma * 0.85), rainStrength * 0.25);
     }
 
     gl_FragColor = vec4(color, albedo.a);

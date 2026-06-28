@@ -41,46 +41,41 @@ void main() {
     else if (tod > 0.95) dayFactor = smoothstep(0.95, 1.0, tod);
     else dayFactor = 0.0;
 
-    float rainDark = rainStrength * 0.4 + wetness * 0.2;
+    float rainDark = rainStrength * 0.3 + wetness * 0.15;
 
-    // Apply brightness settings with proper night fog
-    vec3 fogDayEarly = vec3(0.60, 1.00, 1.00) * DAY_BRIGHTNESS * (1.0 - rainDark);
-    vec3 fogDayLate  = vec3(0.20, 0.40, 1.00) * DAY_BRIGHTNESS * (1.0 - rainDark);
-    vec3 fogNight    = vec3(0.05, 0.05, 0.12) * NIGHT_BRIGHTNESS * (1.0 - rainDark);
+    vec3 fogDayEarly = vec3(0.65, 1.00, 1.00) * DAY_BRIGHTNESS * (1.0 - rainDark);
+    vec3 fogDayLate  = vec3(0.40, 0.60, 1.00) * DAY_BRIGHTNESS * (1.0 - rainDark);
+    vec3 fogNight    = vec3(0.01, 0.01, 0.05) * NIGHT_BRIGHTNESS;
 
     vec3 fogCol;
     if (tod < 0.25) {
         float t = smoothstep(0.0, 0.25, tod);
-        fogCol = mix(vec3(0.40, 0.20, 0.08) * DAY_BRIGHTNESS, fogDayEarly, t);
+        fogCol = mix(vec3(0.2, 0.1, 0.05) * DAY_BRIGHTNESS, fogDayEarly, t);
     } else if (tod < 0.45) {
         fogCol = fogDayEarly;
     } else if (tod < 0.55) {
         float t = smoothstep(0.45, 0.55, tod);
-        // ลดการผสมสีส้ม ค่อย ๆ เข้มไป
-        vec3 sunsetCol = vec3(0.50, 0.25, 0.10) * (1.0 - t);
-        fogCol = mix(fogDayEarly, fogNight, t) + sunsetCol;
+        fogCol = mix(fogDayEarly, fogNight, t);
     } else if (tod < 0.75) {
         float t = smoothstep(0.55, 0.75, tod);
-        fogCol = mix(vec3(0.15, 0.10, 0.15), fogNight, t);
+        fogCol = mix(fogNight, vec3(0.00, 0.00, 0.01), t);
     } else {
-        fogCol = fogNight;
+        fogCol = vec3(0.00, 0.00, 0.01);
     }
 
     if (depth < 1.0) {
-        float fogStart  = 0.65;
-        float fogFactor = clamp((linD - fogStart) * 2.5, 0.0, FOG_DENSITY);
+        float fogStart  = 0.7;
+        float fogFactor = clamp((linD - fogStart) * 2.0, 0.0, FOG_DENSITY);
         c = mix(c, fogCol, fogFactor);
     }
 #endif
 
-    float rainDarkness = rainStrength * 0.4 + wetness * 0.2;
-    c *= 1.0 - rainDarkness;
+    float rainDarkness = rainStrength * 0.3 + wetness * 0.15;
+    c *= 1.0 - rainDarkness * 0.2;
 
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = mix(vec3(luma), c, 1.30);
-    c = c * 1.10 - 0.01;
-    c.r *= 1.01;
-    c.g *= 1.005;
+    c = mix(vec3(luma), c, 1.2);
+    c = c * 1.05;
 
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }

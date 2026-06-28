@@ -4,7 +4,7 @@
 #define ENABLE_DIRLIGHT 1
 #endif
 #ifndef DAY_BRIGHTNESS
-#define DAY_BRIGHTNESS 0.85
+#define DAY_BRIGHTNESS 1.0
 #endif
 #ifndef NIGHT_BRIGHTNESS
 #define NIGHT_BRIGHTNESS 0.3
@@ -44,36 +44,26 @@ varying float bl;
 varying float sl;
 varying vec4 shadowPos;
 
-// SHADOW_QUALITY 0 = ปิด PCF ใช้ single tap (เร็วที่สุด)
-// SHADOW_QUALITY 1 = 4-tap PCF (ค่าเริ่มต้น สมดุล)
-// SHADOW_QUALITY 2 = 9-tap PCF (สวยสุด แต่หนักกว่า)
 float getShadow(vec3 sp) {
     if (sp.x < 0.0 || sp.x > 1.0 || sp.y < 0.0 || sp.y > 1.0) return 1.0;
 
 #if SHADOW_QUALITY == 0
-    // Single sample — เร็วที่สุด
     return step(sp.z - 0.001, texture2D(shadowtex0, sp.xy).r);
-
 #elif SHADOW_QUALITY == 2
-    // 9-tap PCF — นุ่มที่สุด
     float shadow = 0.0;
     float texel = 1.0 / 1024.0;
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
-            vec2 offset = vec2(float(x), float(y)) * texel;
-            shadow += step(sp.z - 0.001, texture2D(shadowtex0, sp.xy + offset).r);
+            shadow += step(sp.z - 0.001, texture2D(shadowtex0, sp.xy + vec2(float(x), float(y)) * texel).r);
         }
     }
     return shadow / 9.0;
-
 #else
-    // 4-tap PCF (default)
     float shadow = 0.0;
     float texel = 1.0 / 1024.0;
     for (int x = -1; x <= 1; x += 2) {
         for (int y = -1; y <= 1; y += 2) {
-            vec2 offset = vec2(float(x), float(y)) * texel;
-            shadow += step(sp.z - 0.001, texture2D(shadowtex0, sp.xy + offset).r);
+            shadow += step(sp.z - 0.001, texture2D(shadowtex0, sp.xy + vec2(float(x), float(y)) * texel).r);
         }
     }
     return shadow * 0.25;
@@ -95,29 +85,27 @@ void main() {
 
     float sl2 = sl * sl;
     float bl2 = bl * bl;
-
     float rainDarkness = rainStrength * 0.4 + wetness * 0.2;
 
-    // ใช้ NIGHT_BRIGHTNESS setting แล้ว
-    vec3 skyAmbDay   = vec3(0.50, 0.70, 1.00) * sl2 * 0.45 * DAY_BRIGHTNESS * (1.0 - rainDarkness);
-    vec3 skyAmbNight = vec3(0.05, 0.05, 0.15) * sl2 * 0.25 * NIGHT_BRIGHTNESS;
+    // Sky ambient - ปรับให้ใช้ DAY/NIGHT_BRIGHTNESS อย่างถูกต้อง
+    vec3 skyAmbDay   = vec3(0.70, 0.85, 1.00) * sl2 * 0.6 * DAY_BRIGHTNESS;
+    vec3 skyAmbNight = vec3(0.02, 0.02, 0.08) * sl2 * 0.15 * NIGHT_BRIGHTNESS;
     vec3 skyAmb = mix(skyAmbDay, skyAmbNight, nightFactor);
 
     vec3 torchColor = vec3(TORCH_COLOR_R, TORCH_COLOR_G, TORCH_COLOR_B);
-    float torchMul = mix(0.60, TORCH_STRENGTH * 0.6, nightFactor);
+    float torchMul = mix(0.5, TORCH_STRENGTH * 0.5, nightFactor);
     vec3 torchC = torchColor * (bl2 * torchMul);
 
-    // Night floor ปรับให้มืดลงตาม NIGHT_BRIGHTNESS
-    vec3 nightFloor = vec3(0.04, 0.04, 0.10) * nightFactor * NIGHT_BRIGHTNESS * 0.5;
-    vec3 ambient = albedo.rgb * (skyAmb + torchC + vec3(0.03)) + albedo.rgb * nightFloor;
+    vec3 ambient = albedo.rgb * (skyAmb + torchC + vec3(0.02));
 
+    // Sun color - ปรับให้ไม่ส้มตอนกลางวัน
     vec3 sunCol;
-    if (tod < 0.10)       sunCol = mix(vec3(0.60, 0.30, 0.10), vec3(1.00, 0.85, 0.50), tod / 0.10);
-    else if (tod < 0.25)  sunCol = mix(vec3(1.00, 0.85, 0.50), vec3(1.00, 0.98, 0.90), (tod - 0.10) / 0.15);
-    else if (tod < 0.45)  sunCol = vec3(1.00, 0.97, 0.85);
-    else if (tod < 0.55)  sunCol = mix(vec3(1.00, 0.97, 0.85), vec3(0.40, 0.30, 0.20), (tod - 0.45) / 0.10);
-    else if (tod < 0.75)  sunCol = mix(vec3(0.40, 0.30, 0.20), vec3(0.05, 0.05, 0.15), (tod - 0.55) / 0.20);
-    else                  sunCol = vec3(0.05, 0.05, 0.15);
+    if (tod < 0.1)       sunCol = mix(vec3(0.3, 0.15, 0.08), vec3(1.0, 0.9, 0.75), tod / 0.1);
+    else if (tod < 0.25) sunCol = mix(vec3(1.0, 0.9, 0.75), vec3(1.0, 0.98, 0.95), (tod - 0.1) / 0.15);
+    else if (tod < 0.45) sunCol = vec3(1.0, 0.98, 0.95);
+    else if (tod < 0.55) sunCol = mix(vec3(1.0, 0.98, 0.95), vec3(0.05, 0.05, 0.15), (tod - 0.45) / 0.1);
+    else if (tod < 0.75) sunCol = mix(vec3(0.05, 0.05, 0.15), vec3(0.01, 0.01, 0.05), (tod - 0.55) / 0.2);
+    else                 sunCol = vec3(0.01, 0.01, 0.05);
 
     float dirLight = max(dot(norm, normalize(vec3(0.55, 1.0, 0.4))), 0.0);
     float shadow = 1.0;
@@ -128,11 +116,11 @@ void main() {
         shadow = getShadow(shadowPos.xyz);
         shadow = mix(1.0, shadow, dayFactor * SHADOW_STRENGTH);
     }
-    dirLight = dirLight * 0.6 + 0.4;
-    diffuse = albedo.rgb * sunCol * dirLight * shadow * 1.3 * (1.0 - rainDarkness * 0.3);
+    dirLight = dirLight * 0.7 + 0.3;
+    diffuse = albedo.rgb * sunCol * dirLight * shadow * 1.2 * (1.0 - rainDarkness * 0.2);
 #else
-    dirLight = dirLight * 0.5 + 0.5;
-    diffuse = albedo.rgb * sunCol * dirLight * 0.8 * (1.0 - rainDarkness * 0.3);
+    dirLight = dirLight * 0.6 + 0.4;
+    diffuse = albedo.rgb * sunCol * dirLight * 0.9;
 #endif
 
     float spec = 0.0;
@@ -141,12 +129,12 @@ void main() {
         vec3 viewDir = normalize(-vec3(gl_ModelViewMatrix[3]));
         vec3 lightDir = normalize(vec3(0.55, 1.0, 0.4));
         vec3 halfDir = normalize(lightDir + viewDir);
-        spec = pow(max(dot(norm, halfDir), 0.0), 32.0) * 0.4 * (rainStrength + wetness);
+        spec = pow(max(dot(norm, halfDir), 0.0), 32.0) * 0.3 * (rainStrength + wetness);
     }
 #endif
 
     vec3 color = ambient + diffuse + vec3(spec) * sunCol * dayFactor;
-    color *= 1.0 - rainDarkness;
+    color *= 1.0 - rainDarkness * 0.3;
 
     gl_FragData[0] = vec4(color, albedo.a);
     gl_FragData[1] = vec4(norm * 0.5 + 0.5, 1.0);
